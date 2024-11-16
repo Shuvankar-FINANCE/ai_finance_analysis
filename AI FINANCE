@@ -1,65 +1,47 @@
-import yfinance as yf
-import openai
+# Install required libraries
+!pip install pandas beautifulsoup4 requests
+
+# Import necessary libraries
+import requests
+from bs4 import BeautifulSoup
 import pandas as pd
-import streamlit as st
 
-# OpenAI API Key
-openai.api_key = "your_openai_api_key"  # Replace with your OpenAI API Key
+# Function to scrape stock data from Yahoo Finance
+def scrape_yahoo_finance(search_term: str):
+    url = f"https://finance.yahoo.com/lookup/?s={search_term}"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36"
+    }
 
-# Function to fetch data from Yahoo Finance
-@st.cache
-def fetch_data(ticker: str, period: str = "1y") -> pd.DataFrame:
-    stock = yf.Ticker(ticker)
-    data = stock.history(period=period)
-    data.reset_index(inplace=True)
-    return data
+    # Request data from Yahoo Finance
+    response = requests.get(url, headers=headers)
+    if response.status_code != 200:
+        raise Exception("Failed to fetch data from Yahoo Finance.")
 
-# Function to generate financial insights using OpenAI
-def generate_insights(data: pd.DataFrame, ticker: str) -> str:
-    prompt = f"""
-    You are a financial expert. Analyze the historical data for the stock {ticker}.
-    Provide insights on trends, key indicators, and suggest investment strategies.
+    # Parse HTML content
+    soup = BeautifulSoup(response.text, "html.parser")
 
-    Data:
-    {data[['Date', 'Close']].to_string(index=False)}
+    # Scrape table rows
+    rows = soup.find_all("tr")
+    stock_data = []
+    for row in rows:
+        columns = row.find_all("td")
+        if len(columns) > 0:
+            stock_data.append([col.text.strip() for col in columns])
 
-    Provide your detailed analysis.
-    """
-    response = openai.Completion.create(
-        engine="text-davinci-003",
-        prompt=prompt,
-        max_tokens=500,
-        temperature=0.7
+    # Convert to a DataFrame
+    df = pd.DataFrame(
+        stock_data, columns=["Symbol", "Name", "Last Price", "Market Time", "Change", "Volume"]
     )
-    return response.choices[0].text.strip()
+    return df
 
-# Streamlit Application
-st.title("AI-Powered Financial Analysis Dashboard")
+# Input from user
+search_term = input("Enter Stock Ticker or Company Name (e.g., AAPL, TSLA): ")
 
-# Sidebar inputs
-st.sidebar.header("Settings")
-ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., AAPL, TSLA)", "AAPL")
-period = st.sidebar.selectbox("Select Time Period", ["1mo", "3mo", "6mo", "1y", "5y"])
-
-# Fetch data
-if st.sidebar.button("Fetch Data"):
-    with st.spinner("Fetching data..."):
-        try:
-            data = fetch_data(ticker, period)
-            st.success("Data fetched successfully!")
-
-            # Display data
-            st.write(f"### {ticker} Stock Data ({period})")
-            st.dataframe(data)
-
-            # Plot stock closing prices
-            st.write("### Closing Price Trend")
-            st.line_chart(data.set_index("Date")["Close"])
-
-            # Generate and display AI insights
-            st.write("### AI-Generated Insights")
-            insights = generate_insights(data, ticker)
-            st.write(insights)
-
-        except Exception as e:
-            st.error(f"Error fetching data: {e}")
+# Fetch and display data
+try:
+    stock_data_df = scrape_yahoo_finance(search_term)
+    print(f"\nResults for '{search_term}':\n")
+    print(stock_data_df)
+except Exception as e:
+    print(f"Error: {e}")
