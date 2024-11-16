@@ -6,6 +6,13 @@ This project is an AI-powered financial analysis tool that fetches stock data fr
 - Fetch historical stock data for any company using its ticker symbol.
 - Visualize trends with interactive charts.
 - Get AI-driven insights and financial analysis.
+- Usage
+Enter a stock ticker symbol (e.g., AAPL, TSLA).
+Select a time period (1 month to 5 years).
+Fetch data and view AI-generated insights.
+Example
+Input: Ticker = "AAPL", Period = "1y"
+Output: Interactive chart and financial analysis.
 
 ## Setup Instructions
 
